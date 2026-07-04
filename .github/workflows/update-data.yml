@@ -36,3 +36,5 @@ jobs:
           git add data/live-data.json
           git diff --cached --quiet || git commit -m "Auto-update live data $(date -u +%Y-%m-%d)"
           git push
+
+# Data sources documented in README.md
