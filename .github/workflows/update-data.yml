@@ -2,8 +2,8 @@ name: Update Dashboard Data
 
 on:
   schedule:
-    # Daily 04:00 UTC = 12:00 China time, after morning ag-price updates
-    - cron: '0 4 * * *'
+    # Every 3 hours - keeps the json fresh whenever the page is refreshed
+    - cron: '17 */3 * * *'
   workflow_dispatch: # Manual trigger
 
 permissions:

@@ -4,67 +4,112 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Muyuan (002714 CH) — Hog Cycle Signpost Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <style>
   :root {
-    --bg: #0d1117; --card: #161b22; --card2: #1c2129; --border: #2d333b;
-    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
-    --green: #3fb950; --amber: #d29922; --red: #f85149;
+    --bg: #0a0e14; --bg2: #0d1219;
+    --card: #11161f; --card2: #151b26; --border: #1e2735; --border2: #2a3547;
+    --text: #e8edf4; --muted: #8b96a8; --dim: #5c6779;
+    --blue: #4f8ff7; --gold: #e8b545; --green: #34c463; --red: #f4544c; --amber: #e8a33d; --purple: #a78bfa;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif; font-size: 14px; line-height: 1.5; }
-  .wrap { max-width: 1280px; margin: 0 auto; padding: 24px 20px 60px; }
-  header h1 { font-size: 22px; font-weight: 700; }
-  header .sub { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
-  .badge { display: inline-block; background: var(--card2); border: 1px solid var(--border); border-radius: 12px; padding: 1px 10px; font-size: 11.5px; color: var(--muted); margin-left: 8px; }
+  html { scroll-behavior: smooth; }
+  body { background: radial-gradient(1200px 500px at 70% -10%, #101a2b 0%, var(--bg) 55%); color: var(--text);
+         font-family: 'Inter', -apple-system, sans-serif; font-size: 14px; line-height: 1.55; min-height: 100vh; }
+  .wrap { max-width: 1340px; margin: 0 auto; padding: 28px 24px 70px; }
 
-  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 18px 0; }
-  .metric { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
-  .metric .label { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; }
-  .metric .value { font-size: 24px; font-weight: 700; margin: 2px 0; }
-  .metric .delta { font-size: 12px; color: var(--muted); }
+  /* header */
+  .hdr { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .hdr h1 { font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
+  .hdr h1 .tick { color: var(--muted); font-weight: 600; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--border);
+          border-radius: 999px; padding: 3px 12px; font-size: 11.5px; color: var(--muted); font-weight: 500; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); }
+  .dot.live { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 50% { opacity: .5; } }
+  .sub { color: var(--dim); font-size: 12px; margin-top: 6px; max-width: 980px; }
 
-  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 10px 0 20px; flex-wrap: wrap; }
-  .tab { background: none; border: none; color: var(--muted); font-size: 14px; font-weight: 600; padding: 10px 16px; cursor: pointer; border-bottom: 2px solid transparent; }
-  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
-  .panel { display: none; }
-  .panel.active { display: block; }
+  /* metric strip */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: 12px; margin: 22px 0 18px; }
+  .metric { background: linear-gradient(180deg, var(--card2), var(--card)); border: 1px solid var(--border);
+            border-radius: 14px; padding: 14px 16px 12px; transition: border-color .15s, transform .15s; }
+  .metric:hover { border-color: var(--border2); transform: translateY(-1px); }
+  .metric .label { color: var(--muted); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+  .metric .value { font-size: 25px; font-weight: 800; letter-spacing: -.02em; margin: 3px 0 1px; font-variant-numeric: tabular-nums; }
+  .metric .value .unit { font-size: 12px; color: var(--muted); font-weight: 600; margin-left: 3px; }
+  .metric .delta { font-size: 11.5px; color: var(--dim); font-weight: 500; }
+  .metric .delta .up { color: var(--green); } .metric .delta .down { color: var(--red); }
 
-  .verdict { background: var(--card); border-left: 4px solid var(--accent); border-radius: 6px; padding: 16px 20px; margin-bottom: 20px; font-size: 13.5px; color: #c9d1d9; }
+  /* tabs */
+  .tabs { display: inline-flex; gap: 4px; background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+          padding: 4px; margin: 6px 0 22px; flex-wrap: wrap; }
+  .tab { background: none; border: none; color: var(--muted); font-family: inherit; font-size: 13px; font-weight: 600;
+         padding: 8px 16px; cursor: pointer; border-radius: 9px; transition: all .15s; }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: linear-gradient(180deg, #23304a, #1b2536); color: var(--text); box-shadow: inset 0 0 0 1px var(--border2); }
+  .panel { display: none; } .panel.active { display: block; animation: fadeIn .25s; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } }
+
+  /* cards */
+  .card { background: linear-gradient(180deg, var(--card2), var(--card)); border: 1px solid var(--border);
+          border-radius: 16px; padding: 18px 20px 12px; margin-bottom: 16px; }
+  .card h3 { font-size: 14px; font-weight: 700; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card h3 .src { color: var(--dim); font-weight: 500; font-size: 11px; }
+  .chart-box { position: relative; height: 300px; margin-top: 10px; }
+  .chart-box.tall { height: 400px; } .chart-box.hero { height: 440px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 950px) { .grid2 { grid-template-columns: 1fr; } }
+
+  /* period radios (like the reference screenshot) */
+  .periods { display: flex; align-items: center; gap: 18px; margin: 10px 0 2px; }
+  .periods .plabel { color: var(--muted); font-size: 12px; font-weight: 600; }
+  .periods label { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; color: var(--muted);
+                   font-size: 12.5px; font-weight: 600; }
+  .periods input { appearance: none; width: 15px; height: 15px; border: 2px solid var(--dim); border-radius: 50%;
+                   cursor: pointer; transition: all .12s; position: relative; }
+  .periods input:checked { border-color: var(--gold); }
+  .periods input:checked::after { content: ''; position: absolute; inset: 2px; border-radius: 50%; background: var(--gold); }
+  .periods label:has(input:checked) { color: var(--text); }
+
+  /* verdict */
+  .verdict { background: linear-gradient(135deg, rgba(79,143,247,.08), rgba(79,143,247,.02)), var(--card);
+             border: 1px solid var(--border); border-left: 3px solid var(--blue); border-radius: 14px;
+             padding: 16px 20px; margin-bottom: 16px; font-size: 13px; color: #c3ccda; }
   .verdict b { color: var(--text); }
 
-  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; font-size: 12.5px; }
-  th { background: var(--card2); color: var(--muted); text-align: left; padding: 9px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
-  td { padding: 9px 12px; border-top: 1px solid var(--border); vertical-align: top; }
-  td.status { font-size: 16px; text-align: center; width: 34px; }
-  .tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 22px; }
-  .sp-name { font-weight: 600; white-space: nowrap; }
+  /* tables */
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; margin-bottom: 18px;
+              background: var(--card); }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { background: var(--card2); color: var(--muted); text-align: left; padding: 10px 14px; font-size: 10.5px;
+       font-weight: 700; text-transform: uppercase; letter-spacing: .07em; white-space: nowrap; }
+  td { padding: 10px 14px; border-top: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: rgba(79,143,247,.03); }
+  td.status { font-size: 15px; text-align: center; width: 30px; }
+  .sp-name { font-weight: 700; white-space: nowrap; }
   .sp-trigger { color: var(--muted); }
-
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
-  .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px 8px; margin-bottom: 16px; }
-  .chart-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
-  .chart-card h3 .src { color: var(--muted); font-weight: 400; font-size: 11px; }
-  .chart-box { position: relative; height: 300px; }
-  .chart-box.tall { height: 380px; }
-  .note { color: var(--muted); font-size: 12px; margin: 6px 0 18px; }
-  h2.sec { font-size: 15px; margin: 24px 0 10px; }
-  .pill { display: inline-block; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; }
-  .pill.g { background: rgba(63,185,80,.15); color: var(--green); }
-  .pill.a { background: rgba(210,153,34,.15); color: var(--amber); }
-  #loading { text-align: center; color: var(--muted); padding: 80px 0; font-size: 15px; }
+  h2.sec { font-size: 15px; font-weight: 700; letter-spacing: -.01em; margin: 26px 0 12px; }
+  .note { color: var(--dim); font-size: 12px; margin: 4px 2px 20px; }
+  #loading { text-align: center; color: var(--muted); padding: 100px 0; font-size: 15px; }
+  .spinner { width: 26px; height: 26px; border: 3px solid var(--border2); border-top-color: var(--blue);
+             border-radius: 50%; margin: 0 auto 14px; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <h1>🐖 Muyuan (002714 CH) — Hog Cycle Signpost Tracker <span class="badge" id="updated"></span></h1>
-    <div class="sub">Signpost scorecard wired to the 20-Mar-26 thesis · live China hog/feed data (soozhu · zhujiadata · DCE · Sina, refreshed daily via GitHub Actions) · manual series from NBS/MOA prints &amp; broker reports (GS 30-Jun · HSBC 25-Jun · Macquarie 3-Jul)</div>
-  </header>
+  <div class="hdr">
+    <h1>🐖 Muyuan <span class="tick">002714 CH</span> — Hog Cycle Signpost Tracker</h1>
+    <span class="chip"><span class="dot" id="liveDot"></span><span id="liveText">connecting…</span></span>
+    <span class="chip" id="updated"></span>
+  </div>
+  <div class="sub">Signpost scorecard wired to the 20-Mar-26 thesis · China hog/feed data refreshed every 3h via GitHub Actions, Muyuan quotes live from eastmoney on each refresh · manual series from NBS/MOA prints &amp; broker reports (GS 30-Jun · HSBC 25-Jun · Macquarie 3-Jul)</div>
 
-  <div id="loading">Loading data…</div>
+  <div id="loading"><div class="spinner"></div>Loading data…</div>
   <div id="app" style="display:none">
     <div class="metrics" id="metricStrip"></div>
 
@@ -79,10 +124,23 @@
     <!-- SCORECARD -->
     <div class="panel active" id="panel-score">
       <div class="verdict" id="verdict"></div>
+
+      <div class="card">
+        <h3>Hog-to-Corn Price Ratio vs Share Price <span class="src">weekly national hog index ÷ DCE corn main · Muyuan A close</span></h3>
+        <div class="periods"><span class="plabel">Period</span>
+          <label><input type="radio" name="rperiod" value="1"> 1Y</label>
+          <label><input type="radio" name="rperiod" value="3"> 3Y</label>
+          <label><input type="radio" name="rperiod" value="5"> 5Y</label>
+          <label><input type="radio" name="rperiod" value="0" checked> ALL</label>
+        </div>
+        <div class="chart-box hero"><canvas id="c-ratio"></canvas></div>
+      </div>
+
       <div class="tbl-wrap"><table id="scoreTable">
         <thead><tr><th></th><th>Signpost</th><th>Trigger</th><th>Latest reading</th><th>Comment</th></tr></thead>
         <tbody></tbody>
       </table></div>
+
       <h2 class="sec">Next checkpoints</h2>
       <div class="tbl-wrap"><table>
         <thead><tr><th>When</th><th>What</th><th>Why it matters</th></tr></thead>
@@ -98,14 +156,14 @@
 
     <!-- PRICES -->
     <div class="panel" id="panel-prices">
-      <div class="chart-card"><h3>National hog price index — weekly, 2015– <span class="src" id="src-hogindex"></span></h3><div class="chart-box tall"><canvas id="c-hogindex"></canvas></div></div>
+      <div class="card"><h3>National hog price index <span class="src">weekly, 2015– · zhujiadata</span></h3><div class="chart-box tall"><canvas id="c-hogindex"></canvas></div></div>
       <div class="grid2">
-        <div class="chart-card"><h3>Daily lean hog 外三元 (Rmb/kg)</h3><div class="chart-box"><canvas id="c-hogspot"></canvas></div></div>
-        <div class="chart-card"><h3>15kg crossbred piglet (Rmb/head)</h3><div class="chart-box"><canvas id="c-piglet"></canvas></div></div>
+        <div class="card"><h3>Daily lean hog 外三元 <span class="src">soozhu · Rmb/kg</span></h3><div class="chart-box"><canvas id="c-hogspot"></canvas></div></div>
+        <div class="card"><h3>15kg crossbred piglet <span class="src">soozhu · Rmb/head</span></h3><div class="chart-box"><canvas id="c-piglet"></canvas></div></div>
       </div>
       <div class="grid2">
-        <div class="chart-card"><h3>DCE live-hog futures, main contract (Rmb/kg)</h3><div class="chart-box"><canvas id="c-lh"></canvas></div></div>
-        <div class="chart-card"><h3>Self-breeding profit/head — report checkpoints</h3><div class="chart-box"><canvas id="c-profit"></canvas></div></div>
+        <div class="card"><h3>DCE live-hog futures, main <span class="src">Rmb/kg</span></h3><div class="chart-box"><canvas id="c-lh"></canvas></div></div>
+        <div class="card"><h3>Self-breeding profit / head <span class="src">report checkpoints · Rmb</span></h3><div class="chart-box"><canvas id="c-profit"></canvas></div></div>
       </div>
       <p class="note">Loss-cycle context (HSBC): current episode began Sep-25, avg −Rmb215/head — second-deepest since 2014 after Jun-21–Jun-22 (−318). Piglet trigger: 7kg weaned &lt; Rmb200/head accelerates piglet-specialist exit; breached per Macquarie (−40% y/y).</p>
     </div>
@@ -114,22 +172,22 @@
     <div class="panel" id="panel-feed">
       <div class="metrics" id="feedMetrics"></div>
       <div class="grid2">
-        <div class="chart-card"><h3>Corn spot (Rmb/kg)</h3><div class="chart-box"><canvas id="c-corn"></canvas></div></div>
-        <div class="chart-card"><h3>Soybean spot (Rmb/kg)</h3><div class="chart-box"><canvas id="c-soybean"></canvas></div></div>
+        <div class="card"><h3>Corn spot <span class="src">soozhu · Rmb/kg</span></h3><div class="chart-box"><canvas id="c-corn"></canvas></div></div>
+        <div class="card"><h3>Soybean spot <span class="src">soozhu · Rmb/kg</span></h3><div class="chart-box"><canvas id="c-soybean"></canvas></div></div>
       </div>
       <div class="grid2">
-        <div class="chart-card"><h3>DCE corn futures, main (Rmb/kg)</h3><div class="chart-box"><canvas id="c-cornfut"></canvas></div></div>
-        <div class="chart-card"><h3>DCE soybean-meal futures, main (Rmb/kg)</h3><div class="chart-box"><canvas id="c-mealfut"></canvas></div></div>
+        <div class="card"><h3>DCE corn futures, main <span class="src">Rmb/kg · since 2005</span></h3><div class="chart-box"><canvas id="c-cornfut"></canvas></div></div>
+        <div class="card"><h3>DCE soybean-meal futures, main <span class="src">Rmb/kg</span></h3><div class="chart-box"><canvas id="c-mealfut"></canvas></div></div>
       </div>
-      <p class="note">Feed ≈ 60% of Muyuan unit cost; GP sensitivity ≈ Rmb0.1/kg hog-price move = ~Rmb0.9bn NI. Watch: NOAA puts El Niño probability at 96–98% for 4Q26 — a 2027 feed-cost risk. March-26 Hormuz overhang has cleared (corn flat y/y, meal −4.5% y/y).</p>
+      <p class="note">Feed ≈ 60% of Muyuan unit cost; GP sensitivity ≈ Rmb0.1/kg hog-price move = ~Rmb0.9bn NI. Watch: NOAA puts El Niño probability at 96–98% for 4Q26 — a 2027 feed-cost risk. The Mar-26 Hormuz overhang has cleared (corn flat y/y, meal −4.5% y/y).</p>
     </div>
 
     <!-- SUPPLY -->
     <div class="panel" id="panel-supply">
-      <div class="chart-card"><h3>National sow inventory vs thesis thresholds (mn heads)</h3><div class="chart-box tall"><canvas id="c-sow"></canvas></div></div>
+      <div class="card"><h3>National sow inventory vs thesis thresholds <span class="src">NBS quarterly · mn heads</span></h3><div class="chart-box tall"><canvas id="c-sow"></canvas></div></div>
       <div class="grid2">
-        <div class="chart-card"><h3>Muyuan sow inventory (mn heads, quarterly)</h3><div class="chart-box"><canvas id="c-muyuansow"></canvas></div></div>
-        <div class="chart-card"><h3>PSY-adjusted hog output y/y — actual vs GS estimates</h3><div class="chart-box"><canvas id="c-supply"></canvas></div></div>
+        <div class="card"><h3>Muyuan sow inventory <span class="src">company data · mn heads</span></h3><div class="chart-box"><canvas id="c-muyuansow"></canvas></div></div>
+        <div class="card"><h3>PSY-adjusted hog output y/y <span class="src">actual vs GS estimates</span></h3><div class="chart-box"><canvas id="c-supply"></canvas></div></div>
       </div>
       <h2 class="sec">Producer distress log</h2>
       <div class="tbl-wrap"><table id="distressTable"><thead><tr><th>Date</th><th>Producer</th><th>Event</th><th>Source</th></tr></thead><tbody></tbody></table></div>
@@ -139,82 +197,155 @@
     <!-- VALUATION -->
     <div class="panel" id="panel-val">
       <div class="grid2">
-        <div class="chart-card"><h3>Muyuan A — 002714 CH (Rmb)</h3><div class="chart-box"><canvas id="c-mya"></canvas></div></div>
-        <div class="chart-card"><h3>Muyuan H — 2714 HK (HK$)</h3><div class="chart-box"><canvas id="c-myh"></canvas></div></div>
+        <div class="card"><h3>Muyuan A — 002714 CH <span class="src">Rmb · since 2014 listing</span></h3><div class="chart-box"><canvas id="c-mya"></canvas></div></div>
+        <div class="card"><h3>Muyuan H — 2714 HK <span class="src">HK$</span></h3><div class="chart-box"><canvas id="c-myh"></canvas></div></div>
       </div>
       <h2 class="sec">Street snapshot</h2>
       <div class="tbl-wrap"><table id="streetTable"><thead><tr><th>Broker</th><th>Date</th><th>Rating</th><th>TP A</th><th>TP H</th><th>2H26 hog</th><th>2027 hog</th><th>Inflection call</th><th>Key view</th></tr></thead><tbody></tbody></table></div>
       <h2 class="sec">Reference facts</h2>
       <div class="tbl-wrap"><table id="factsTable"><thead><tr><th>Item</th><th>Value</th><th>As of</th><th>Source</th></tr></thead><tbody></tbody></table></div>
-      <p class="note">GS unit-NP sensitivity (H-share): Rmb1/kg → HK$24.5 · Rmb3/kg mid-cycle → HK$61.9 · Rmb5/kg → HK$99.3. Replacement cost ≈ Rmb1,500/head EV → HK$34.5; historical-low EV/head ≈ Rmb2,500 → HK$54.5.</p>
+      <p class="note">GS unit-NP sensitivity (H-share): Rmb1/kg → HK$24.5 · Rmb3/kg mid-cycle → HK$61.9 · Rmb5/kg → HK$99.3. Replacement ≈ Rmb1,500/head EV → HK$34.5; historical-low EV/head ≈ Rmb2,500 → HK$54.5.</p>
     </div>
   </div>
 </div>
 
 <script>
-const C = { text:'#e6edf3', muted:'#8b949e', grid:'#21262d', blue:'#58a6ff', green:'#3fb950', amber:'#d29922', red:'#f85149', purple:'#bc8cff', orange:'#f0883e' };
+// ============================================================ theme & plugins
+const C = { text:'#e8edf4', muted:'#8b96a8', dim:'#5c6779', grid:'rgba(139,150,168,.09)',
+            blue:'#4f8ff7', gold:'#e8b545', green:'#34c463', red:'#f4544c', amber:'#e8a33d', purple:'#a78bfa' };
 Chart.defaults.color = C.muted;
 Chart.defaults.borderColor = C.grid;
+Chart.defaults.font.family = "'Inter', sans-serif";
 Chart.defaults.font.size = 11;
+Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(13,18,25,.96)';
+Chart.defaults.plugins.tooltip.borderColor = '#2a3547';
+Chart.defaults.plugins.tooltip.borderWidth = 1;
+Chart.defaults.plugins.tooltip.titleFont = { weight: '700', size: 11.5 };
+Chart.defaults.plugins.tooltip.padding = 10;
+Chart.defaults.plugins.tooltip.cornerRadius = 8;
 
-// tiny plugin: draw labelled horizontal reference lines from options.hLines
+// dashed horizontal reference lines with value pills at the left edge
 const hLinesPlugin = {
   id: 'hLines',
-  afterDraw(chart) {
+  afterDatasetsDraw(chart) {
     const lines = chart.options.hLines || [];
-    const { ctx, chartArea: a, scales: { y } } = chart;
-    lines.forEach(([val, label, color]) => {
-      if (val < y.min || val > y.max) return;
+    const { ctx, chartArea: a } = chart;
+    lines.forEach(([val, label, color, axisId]) => {
+      const y = chart.scales[axisId || 'y'];
+      if (!y || val < y.min || val > y.max) return;
       const py = y.getPixelForValue(val);
       ctx.save();
-      ctx.strokeStyle = color; ctx.setLineDash([5, 4]); ctx.lineWidth = 1;
+      ctx.strokeStyle = color; ctx.globalAlpha = .75; ctx.setLineDash([5, 5]); ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(a.left, py); ctx.lineTo(a.right, py); ctx.stroke();
-      ctx.setLineDash([]); ctx.fillStyle = color; ctx.font = '10px sans-serif';
-      ctx.textAlign = 'right'; ctx.fillText(label, a.right - 4, py - 4);
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+      ctx.font = "700 10px Inter, sans-serif";
+      const txt = `${val.toFixed(2)}  ${label}`;
+      const w = ctx.measureText(txt).width + 14;
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.roundRect(a.left + 2, py - 9, w, 18, 5); ctx.fill();
+      ctx.fillStyle = '#0a0e14'; ctx.textBaseline = 'middle';
+      ctx.fillText(txt, a.left + 9, py + .5);
       ctx.restore();
     });
   }
 };
-Chart.register(hLinesPlugin);
 
-const fmt = (x, d=2) => x == null ? 'n/a' : Number(x).toFixed(d);
-const last = (arr, key) => { for (let i = arr.length - 1; i >= 0; i--) if (arr[i][key] != null) return arr[i]; return null; };
+// last-value tag at the right edge of tagged datasets (like "Price 36.90")
+const edgeTagPlugin = {
+  id: 'edgeTags',
+  afterDatasetsDraw(chart) {
+    const { ctx, chartArea: a } = chart;
+    chart.data.datasets.forEach((ds, i) => {
+      if (!ds.tag || !chart.isDatasetVisible(i)) return;
+      const data = ds.data;
+      let lastVal = null;
+      for (let j = data.length - 1; j >= 0; j--) { const v = data[j].y ?? data[j]; if (v != null) { lastVal = v; break; } }
+      if (lastVal == null) return;
+      const y = chart.scales[ds.yAxisID || 'y'];
+      const py = Math.min(Math.max(y.getPixelForValue(lastVal), a.top + 9), a.bottom - 9);
+      ctx.save();
+      ctx.font = "700 10px Inter, sans-serif";
+      const txt = `${ds.tag} ${(+lastVal).toFixed(2)}`;
+      const w = ctx.measureText(txt).width + 14;
+      ctx.fillStyle = ds.borderColor;
+      ctx.beginPath(); ctx.roundRect(a.right - w - 2, py - 9, w, 18, 5); ctx.fill();
+      ctx.fillStyle = '#0a0e14'; ctx.textBaseline = 'middle';
+      ctx.fillText(txt, a.right - w + 5, py + .5);
+      ctx.restore();
+    });
+  }
+};
+
+// vertical crosshair on hover
+const crosshairPlugin = {
+  id: 'crosshair',
+  afterDatasetsDraw(chart) {
+    const act = chart.tooltip?.getActiveElements();
+    if (!act?.length) return;
+    const { ctx, chartArea: a } = chart;
+    const x = act[0].element.x;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(139,150,168,.35)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(x, a.top); ctx.lineTo(x, a.bottom); ctx.stroke();
+    ctx.restore();
+  }
+};
+Chart.register(hLinesPlugin, edgeTagPlugin, crosshairPlugin);
+
+const gradient = (color, alphaTop = .25) => ctx => {
+  const { chart } = ctx; const { ctx: c, chartArea: a } = chart;
+  if (!a) return 'rgba(0,0,0,0)';
+  const g = c.createLinearGradient(0, a.top, 0, a.bottom);
+  const rgb = { [C.blue]: '79,143,247', [C.gold]: '232,181,69', [C.green]: '52,196,99',
+                [C.red]: '244,84,76', [C.amber]: '232,163,61', [C.purple]: '167,139,250' }[color] || '79,143,247';
+  g.addColorStop(0, `rgba(${rgb},${alphaTop})`); g.addColorStop(1, `rgba(${rgb},0)`);
+  return g;
+};
+
+const fmt = (x, d = 2) => x == null ? 'n/a' : Number(x).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const last = (arr, key) => { for (let i = arr.length - 1; i >= 0; i--) if (arr[i]?.[key] != null) return arr[i]; return null; };
 const ts = rows => rows.map(r => ({ x: r.date, y: r.price ?? r.close ?? r.close_kg }));
 
-function lineChart(id, datasets, { hLines=[], yTitle='', unit='' } = {}) {
-  new Chart(document.getElementById(id), {
+function lineChart(id, datasets, { hLines = [], unit = '', fill0 = true } = {}) {
+  datasets.forEach((ds, i) => {
+    ds.borderWidth = ds.borderWidth ?? 1.8;
+    ds.pointRadius = 0; ds.pointHitRadius = 8;
+    ds.tension = .12;
+    if (i === 0 && fill0) { ds.fill = 'origin'; ds.backgroundColor = gradient(ds.borderColor); }
+  });
+  return new Chart(document.getElementById(id), {
     type: 'line',
     data: { datasets },
     options: {
-      hLines,
-      maintainAspectRatio: false, animation: false,
+      hLines, maintainAspectRatio: false, animation: false, normalized: true,
       interaction: { mode: 'nearest', axis: 'x', intersect: false },
-      plugins: { legend: { display: datasets.length > 1, labels: { boxWidth: 12 } },
-                 tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(c.parsed.y)}${unit}` } } },
-      scales: { x: { type: 'time', time: { tooltipFormat: 'dd MMM yy' }, ticks: { maxTicksLimit: 9 } },
-                y: { title: { display: !!yTitle, text: yTitle } } },
-      elements: { point: { radius: 0, hitRadius: 8 }, line: { borderWidth: 1.8 } }
+      plugins: { legend: { display: datasets.length > 1, labels: { boxWidth: 14, boxHeight: 3, font: { weight: '600' } } },
+                 tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.parsed.y)}${unit}` } } },
+      scales: { x: { type: 'time', time: { tooltipFormat: 'dd MMM yy' }, ticks: { maxTicksLimit: 9, font: { weight: '500' } }, grid: { display: false } },
+                y: { ticks: { callback: v => fmt(v, v < 100 ? 2 : 0), font: { weight: '500' } }, border: { display: false } } },
     }
   });
 }
 
-fetch('data/live-data.json').then(r => r.json()).then(D => {
+// ================================================================ bootstrap
+const bust = `?t=${Date.now()}`;   // GitHub Pages caches for 10 min - always bypass
+fetch('data/live-data.json' + bust).then(r => r.json()).then(D => {
   const M = D.manual;
-  document.getElementById('updated').textContent = 'data as of ' + D.updated_at.slice(0, 10);
+  document.getElementById('updated').textContent = 'data ' + D.updated_at.replace('T', ' ').slice(0, 16) + ' CN';
   document.getElementById('loading').style.display = 'none';
   document.getElementById('app').style.display = 'block';
 
-  // ---------- scorecard math (mirrors the 20-Mar-26 thesis thresholds) ----------
+  // ------------- scorecard math (20-Mar-26 thesis thresholds) -------------
   const T_MOD = 37.5, T_STRONG = 36.5, T_SUPER = 35.0, DEADLINE = new Date('2026-09-30');
   const sowRows = M.sow_inventory.filter(r => r.nbs_sow_mn != null);
   const sowNow = sowRows[sowRows.length - 1], sowPrev = sowRows[sowRows.length - 2];
   const paceQoq = sowNow.nbs_sow_mn - sowPrev.nbs_sow_mn;
-  const qtrsLeft = Math.max((DEADLINE - new Date(sowNow.date)) / 86400000 / 91.3, 0.1);
+  const qtrsLeft = Math.max((DEADLINE - new Date(sowNow.date)) / 86400000 / 91.3, .1);
   const paceNeeded = (T_MOD - sowNow.nbs_sow_mn) / qtrsLeft;
 
   const hogNow = last(D.hog_spot, 'price'), pigletNow = last(D.piglet, 'price');
   const cornNow = last(D.corn, 'price'), lhNow = last(D.lh_futures, 'close_kg');
-  const myaNow = last(D.muyuan_a, 'close'), myhNow = last(D.muyuan_h, 'close');
+  let myaNow = last(D.muyuan_a, 'close'), myhNow = last(D.muyuan_h, 'close');
   const hogCorn = hogNow && cornNow ? hogNow.price / cornNow.price : null;
   const lossNow = last(M.price_checkpoints, 'self_breeding_profit_rmb_head');
   const lossMonths = Math.round((Date.now() - new Date('2025-09-01')) / 86400000 / 30.4);
@@ -269,39 +400,89 @@ fetch('data/live-data.json').then(r => r.json()).then(D => {
      threshold the memo calibrated — now with an end-September deadline and provincial enforcement. PSY-adjusted output has
      peaked and rolls negative through 2H26. Capitulation is financial (cash-runway exhaustion), answering the consolidation
      objection. <b>Not</b> triggered: herd still ${fmt(sowNow.nbs_sow_mn - T_MOD, 1)}mn above target, demand soft with
-     frozen-pork inventory at 3-yr highs, street still split on magnitude (Rmb15/kg GS vs "moderate" HSBC).
+     frozen-pork inventory at 3-yr highs, street split on magnitude (Rmb15/kg GS vs "moderate" HSBC).
      <b>A moderate-cycle-turn setup bought below replacement cost — not a super-cycle bet.</b>
      Falsifiers: Jun/Sep sow prints miss the glide path · 7kg piglet back &gt; Rmb300 · corn/meal +15%.`;
 
-  document.getElementById('metricStrip').innerHTML = [
-    ['Signposts triggered', `${nGreen}/${signposts.length}`, `${signposts.length - nGreen} amber`],
-    ['Hog spot (Rmb/kg)', fmt(hogNow?.price), `vs 9.0 Apr low · LH fut ${fmt(lhNow?.close_kg, 1)}`],
-    ['Sow herd (mn)', fmt(sowNow.nbs_sow_mn), `target ${T_MOD} by Sep-26 · pace ${fmt(paceQoq)}/qtr`],
-    ['Muyuan A / H', `${fmt(myaNow?.close, 1)} / ${fmt(myhNow?.close, 1)}`, 'street TP 51.5–54.5 (A)'],
-    ['Hog : corn ratio', `${fmt(hogCorn, 1)}x`, 'breakeven convention ~6x'],
-  ].map(m => `<div class="metric"><div class="label">${m[0]}</div><div class="value">${m[1]}</div><div class="delta">${m[2]}</div></div>`).join('');
+  const metricCard = (label, value, unit, delta) =>
+    `<div class="metric"><div class="label">${label}</div><div class="value">${value}<span class="unit">${unit || ''}</span></div><div class="delta">${delta || ''}</div></div>`;
 
-  // ---------- tabs ----------
+  function renderMetrics() {
+    const aPrev = D.muyuan_a[D.muyuan_a.length - 2], hPrev = D.muyuan_h[D.muyuan_h.length - 2];
+    const chg = (now, prev) => { if (!now || !prev) return ''; const p = 100 * (now.close - prev.close) / prev.close;
+      return `<span class="${p >= 0 ? 'up' : 'down'}">${p >= 0 ? '▲' : '▼'} ${fmt(Math.abs(p), 1)}%</span> d/d`; };
+    document.getElementById('metricStrip').innerHTML = [
+      metricCard('Signposts triggered', `${nGreen}/${signposts.length}`, '', `${signposts.length - nGreen} amber · 0 red`),
+      metricCard('Hog spot', fmt(hogNow?.price), 'Rmb/kg', `vs 9.00 Apr low · LH fut ${fmt(lhNow?.close_kg, 1)}`),
+      metricCard('Hog : corn ratio', fmt(hogCorn, 2), 'x', 'NDRC trigger 5.0x · BE ~7.0x'),
+      metricCard('Sow herd', fmt(sowNow.nbs_sow_mn), 'mn', `target ${T_MOD} by Sep-26 · pace ${fmt(paceQoq)}/qtr`),
+      metricCard('Muyuan A', fmt(myaNow?.close), 'Rmb', chg(myaNow, aPrev) + ' · TP 51.5–54.5'),
+      metricCard('Muyuan H', fmt(myhNow?.close), 'HK$', chg(myhNow, hPrev) + ` · repl. ${replH}`),
+    ].join('');
+  }
+  renderMetrics();
+
+  // ---------------------------------------------------------------- tabs
   document.getElementById('tabs').addEventListener('click', e => {
     if (!e.target.dataset.panel) return;
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === e.target));
     document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + e.target.dataset.panel));
-    // canvases created while their panel was display:none are 0-size; resize on reveal
-    // (setTimeout, not rAF — rAF is suspended in background tabs)
-    setTimeout(() =>
-      document.querySelectorAll(`#panel-${e.target.dataset.panel} canvas`).forEach(cv => Chart.getChart(cv)?.resize()), 0);
+    // canvases created while hidden are 0-size; resize on reveal (setTimeout - rAF suspends in bg tabs)
+    setTimeout(() => document.querySelectorAll(`#panel-${e.target.dataset.panel} canvas`).forEach(cv => Chart.getChart(cv)?.resize()), 0);
   });
 
-  // ---------- charts ----------
-  lineChart('c-hogindex', [
-    { label: 'transacted avg', data: ts(D.hog_index), borderColor: C.blue },
-    { label: 'presale avg', data: D.hog_index.map(r => ({ x: r.date, y: r.presale })), borderColor: C.purple },
-  ], { hLines: [[9.0, 'Apr-26 low 9.0', C.red]], yTitle: 'Rmb/kg', unit: ' Rmb/kg' });
+  // -------------------------------------------- hero: ratio vs share price
+  // weekly hog index ÷ nearest prior DCE corn main close
+  const corn = D.corn_futures;
+  let ci = 0;
+  const ratioSeries = D.hog_index.map(r => {
+    while (ci < corn.length - 1 && corn[ci + 1].date <= r.date) ci++;
+    const c = corn[ci];
+    return c && c.close_kg > 0 && c.date <= r.date ? { x: r.date, y: +(r.price / c.close_kg).toFixed(2) } : null;
+  }).filter(Boolean);
+  const priceSeries = D.muyuan_a.map(r => ({ x: r.date, y: r.close }));
 
-  lineChart('c-hogspot', [{ label: 'lean hog', data: ts(D.hog_spot), borderColor: C.blue }], { unit: ' Rmb/kg' });
-  lineChart('c-piglet', [{ label: 'piglet', data: ts(D.piglet), borderColor: C.orange }], { unit: ' Rmb/head' });
-  lineChart('c-lh', [{ label: 'LH main', data: ts(D.lh_futures), borderColor: C.green }],
-    { hLines: hogNow ? [[hogNow.price, `spot ${fmt(hogNow.price)}`, C.blue]] : [], unit: ' Rmb/kg' });
+  const ratioChart = new Chart(document.getElementById('c-ratio'), {
+    type: 'line',
+    data: { datasets: [
+      { label: 'Hog-to-Corn Ratio (LHS)', data: ratioSeries, borderColor: C.gold, yAxisID: 'y',
+        borderWidth: 1.8, pointRadius: 0, pointHitRadius: 8, tension: .15, tag: 'Ratio' },
+      { label: 'Share Price (RHS)', data: priceSeries, borderColor: C.blue, yAxisID: 'y2',
+        borderWidth: 1.8, pointRadius: 0, pointHitRadius: 8, tension: .15, tag: 'Price',
+        fill: 'origin', backgroundColor: gradient(C.blue, .22) },
+    ]},
+    options: {
+      hLines: [[5.0, '5.0x NDRC', C.red, 'y'], [7.0, '7.0x BE', C.amber, 'y']],
+      maintainAspectRatio: false, animation: false, normalized: true,
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
+      plugins: { legend: { labels: { boxWidth: 14, boxHeight: 3, font: { weight: '600' } } },
+                 tooltip: { callbacks: { label: c => ` ${c.dataset.label.replace(/ \(.HS\)/, '')}: ${fmt(c.parsed.y)}${c.datasetIndex ? ' Rmb' : 'x'}` } } },
+      scales: {
+        x: { type: 'time', time: { tooltipFormat: 'dd MMM yy' }, ticks: { maxTicksLimit: 12, font: { weight: '500' } }, grid: { display: false } },
+        y: { position: 'left', ticks: { callback: v => fmt(v) }, border: { display: false } },
+        y2: { position: 'right', grid: { display: false }, ticks: { callback: v => fmt(v, 0) }, border: { display: false } },
+      },
+    }
+  });
+
+  document.querySelectorAll('input[name="rperiod"]').forEach(el => el.addEventListener('change', e => {
+    const yrs = +e.target.value;
+    const cut = yrs ? new Date(Date.now() - yrs * 365.25 * 86400000).toISOString().slice(0, 10) : '1900-01-01';
+    ratioChart.data.datasets[0].data = ratioSeries.filter(p => p.x >= cut);
+    ratioChart.data.datasets[1].data = priceSeries.filter(p => p.x >= cut);
+    ratioChart.update('none');
+  }));
+
+  // ---------------------------------------------------------------- charts
+  lineChart('c-hogindex', [
+    { label: 'transacted avg', data: ts(D.hog_index), borderColor: C.blue, tag: 'Spot' },
+    { label: 'presale avg', data: D.hog_index.map(r => ({ x: r.date, y: r.presale })), borderColor: C.purple },
+  ], { hLines: [[9.0, 'Apr-26 low', C.red]], unit: ' Rmb/kg' });
+
+  lineChart('c-hogspot', [{ label: 'lean hog', data: ts(D.hog_spot), borderColor: C.blue, tag: '' }], { unit: ' Rmb/kg' });
+  lineChart('c-piglet', [{ label: 'piglet', data: ts(D.piglet), borderColor: C.amber }], { unit: ' Rmb/head' });
+  lineChart('c-lh', [{ label: 'LH main', data: ts(D.lh_futures), borderColor: C.green, tag: 'Fut' }],
+    { hLines: hogNow ? [[hogNow.price, 'spot', C.blue]] : [], unit: ' Rmb/kg' });
   lineChart('c-profit', [{ label: 'profit/head', data: M.price_checkpoints.map(r => ({ x: r.date, y: r.self_breeding_profit_rmb_head })), borderColor: C.red, spanGaps: true }],
     { hLines: [[0, 'breakeven', C.muted]], unit: ' Rmb/head' });
 
@@ -311,55 +492,103 @@ fetch('data/live-data.json').then(r => r.json()).then(D => {
   lineChart('c-mealfut', [{ label: 'DCE meal', data: ts(D.meal_futures), borderColor: C.green }], { unit: ' Rmb/kg' });
 
   document.getElementById('feedMetrics').innerHTML = [
-    ['Corn spot', `${fmt(cornNow?.price)} Rmb/kg`, cornNow?.date],
-    ['Soybean spot', `${fmt(last(D.soybean, 'price')?.price)} Rmb/kg`, last(D.soybean, 'price')?.date],
-    ['Mixed feed', `${fmt(last(D.feed, 'price')?.price)} Rmb/kg`, last(D.feed, 'price')?.date],
-    ['Hog : corn', `${fmt(hogCorn, 2)}x`, 'deep below 6x = max pain'],
-  ].map(m => `<div class="metric"><div class="label">${m[0]}</div><div class="value">${m[1]}</div><div class="delta">${m[2] || ''}</div></div>`).join('');
+    metricCard('Corn spot', fmt(cornNow?.price), 'Rmb/kg', cornNow?.date),
+    metricCard('Soybean spot', fmt(last(D.soybean, 'price')?.price), 'Rmb/kg', last(D.soybean, 'price')?.date),
+    metricCard('Mixed feed', fmt(last(D.feed, 'price')?.price), 'Rmb/kg', last(D.feed, 'price')?.date),
+    metricCard('Hog : corn', fmt(hogCorn, 2), 'x', 'deep below 6x = max pain'),
+  ].join('');
 
-  // sow chart with glide path + thresholds
   new Chart(document.getElementById('c-sow'), {
     type: 'line',
     data: { datasets: [
-      { label: 'NBS sow herd', data: sowRows.map(r => ({ x: r.date, y: r.nbs_sow_mn })), borderColor: C.blue, pointRadius: 3 },
-      { label: 'required glide path', data: [{ x: sowNow.date, y: sowNow.nbs_sow_mn }, { x: '2026-09-30', y: T_MOD }], borderColor: C.orange, borderDash: [6, 4], pointRadius: 0 },
+      { label: 'NBS sow herd', data: sowRows.map(r => ({ x: r.date, y: r.nbs_sow_mn })), borderColor: C.blue,
+        pointRadius: 3.5, pointBackgroundColor: C.blue, borderWidth: 2, tension: .1, tag: 'Sows',
+        fill: 'origin', backgroundColor: gradient(C.blue, .15) },
+      { label: 'required glide path', data: [{ x: sowNow.date, y: sowNow.nbs_sow_mn }, { x: '2026-09-30', y: T_MOD }],
+        borderColor: C.amber, borderDash: [6, 4], pointRadius: 0, borderWidth: 2 },
     ]},
     options: {
-      hLines: [[39.0, 'MARA green zone ~39', C.muted], [T_MOD, `MARA target / moderate ${T_MOD}`, C.amber], [T_STRONG, `strong ${T_STRONG}`, C.orange], [T_SUPER, `super-cycle ${T_SUPER}`, C.red]],
+      hLines: [[39.0, 'MARA green zone', C.dim], [T_MOD, 'MARA target / moderate', C.amber],
+               [T_STRONG, 'strong', '#e8843d'], [T_SUPER, 'super-cycle', C.red]],
       maintainAspectRatio: false, animation: false,
-      plugins: { legend: { labels: { boxWidth: 12 } } },
-      scales: { x: { type: 'time', ticks: { maxTicksLimit: 10 } }, y: { title: { display: true, text: 'mn heads' }, suggestedMin: 34 } },
-      elements: { line: { borderWidth: 2 } }
+      plugins: { legend: { labels: { boxWidth: 14, boxHeight: 3, font: { weight: '600' } } } },
+      scales: { x: { type: 'time', ticks: { maxTicksLimit: 10 }, grid: { display: false } },
+                y: { suggestedMin: 34, border: { display: false } } },
     }
   });
 
-  lineChart('c-muyuansow', [{ label: 'Muyuan sows', data: M.sow_inventory.filter(r => r.muyuan_sow_mn != null).map(r => ({ x: r.date, y: r.muyuan_sow_mn })), borderColor: C.purple }], { unit: ' mn' });
+  lineChart('c-muyuansow', [{ label: 'Muyuan sows', data: M.sow_inventory.filter(r => r.muyuan_sow_mn != null).map(r => ({ x: r.date, y: r.muyuan_sow_mn })), borderColor: C.purple, pointRadius: 3 }], { unit: ' mn' });
 
   new Chart(document.getElementById('c-supply'), {
     type: 'bar',
     data: { labels: M.effective_supply.map(r => r.period + (r.is_estimate ? 'E' : '')),
-            datasets: [{ label: 'hog output y/y %', data: M.effective_supply.map(r => r.hog_output_yoy_pct),
-                         backgroundColor: M.effective_supply.map(r => r.is_estimate ? 'rgba(248,81,73,.55)' : 'rgba(88,166,255,.65)') }] },
-    options: { hLines: [[-5, '−5% = thesis trigger', C.red]], maintainAspectRatio: false, animation: false,
-               plugins: { legend: { display: false } }, scales: { y: { title: { display: true, text: '% y/y' } } } }
+            datasets: [{ data: M.effective_supply.map(r => r.hog_output_yoy_pct),
+                         backgroundColor: M.effective_supply.map(r => r.is_estimate ? 'rgba(244,84,76,.5)' : 'rgba(79,143,247,.65)'),
+                         borderRadius: 5 }] },
+    options: { hLines: [[-5, 'thesis trigger', C.red]], maintainAspectRatio: false, animation: false,
+               plugins: { legend: { display: false } }, scales: { y: { title: { display: true, text: '% y/y' }, border: { display: false } }, x: { grid: { display: false } } } }
   });
 
   document.getElementById('distressTable').querySelector('tbody').innerHTML =
-    M.distress_events.map(r => `<tr><td>${r.date}</td><td>${r.producer}</td><td>${r.event}</td><td class="sp-trigger">${r.source}</td></tr>`).join('');
+    M.distress_events.map(r => `<tr><td>${r.date}</td><td class="sp-name">${r.producer}</td><td>${r.event}</td><td class="sp-trigger">${r.source}</td></tr>`).join('');
 
-  lineChart('c-mya', [{ label: '002714 CH', data: ts(D.muyuan_a), borderColor: C.blue }],
-    { hLines: [[51.5, 'GS TP 51.5', C.green], [54.5, 'HSBC TP 54.5', C.green], [53.0, 'Macquarie TP 53', C.green]], unit: ' Rmb' });
-  lineChart('c-myh', [{ label: '2714 HK', data: ts(D.muyuan_h), borderColor: C.purple }],
-    { hLines: [[replH, `replacement ${replH}`, C.amber], [histLowH, `hist-low EV/head ${histLowH}`, C.green], [24.5, 'GS low case 24.5', C.red]], unit: ' HK$' });
+  const myaChart = lineChart('c-mya', [{ label: '002714 CH', data: ts(D.muyuan_a), borderColor: C.blue, tag: 'A' }],
+    { hLines: [[51.5, 'GS TP', C.green], [54.5, 'HSBC TP', C.green], [53.0, 'MQ TP', C.green]], unit: ' Rmb' });
+  const myhChart = lineChart('c-myh', [{ label: '2714 HK', data: ts(D.muyuan_h), borderColor: C.purple, tag: 'H' }],
+    { hLines: [[replH, 'replacement', C.amber], [histLowH, 'hist-low EV/head', C.green], [24.5, 'GS low case', C.red]], unit: ' HK$' });
 
   document.getElementById('streetTable').querySelector('tbody').innerHTML = M.street_estimates.map(r =>
-    `<tr><td>${r.broker}</td><td>${r.report_date}</td><td>${r.rating}</td><td>${r.tp_a_rmb ?? '—'}</td><td>${r.tp_h_hkd ?? '—'}</td><td>${r.hog_price_2h26_rmb_kg ?? '—'}</td><td>${r.hog_price_2027_rmb_kg ?? '—'}</td><td>${r.inflection_call}</td><td class="sp-trigger">${r.key_view}</td></tr>`).join('');
+    `<tr><td class="sp-name">${r.broker}</td><td>${r.report_date}</td><td>${r.rating}</td><td>${r.tp_a_rmb ?? '—'}</td><td>${r.tp_h_hkd ?? '—'}</td><td>${r.hog_price_2h26_rmb_kg ?? '—'}</td><td>${r.hog_price_2027_rmb_kg ?? '—'}</td><td>${r.inflection_call}</td><td class="sp-trigger">${r.key_view}</td></tr>`).join('');
 
   document.getElementById('factsTable').querySelector('tbody').innerHTML = M.muyuan.map(r =>
-    `<tr><td>${r.item}</td><td>${r.value}</td><td>${r.as_of}</td><td class="sp-trigger">${r.source}</td></tr>`).join('');
+    `<tr><td>${r.item}</td><td class="sp-name">${r.value}</td><td>${r.as_of}</td><td class="sp-trigger">${r.source}</td></tr>`).join('');
+
+  // -------------------------------------- live quotes (eastmoney, CORS-open)
+  // A-share verified; H best-effort. Last kline row carries the real-time price intraday.
+  const em = secid =>
+    fetch(`https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secid}&klt=101&fqt=1&lmt=5&end=20500101&fields1=f1,f2,f3&fields2=f51,f53&_=${Date.now()}`)
+      .then(r => r.json())
+      .then(j => (j.data?.klines || []).map(k => { const [d, c] = k.split(','); return { date: d, close: +c }; }));
+
+  function merge(series, fresh) {
+    fresh.forEach(q => {
+      const i = series.findIndex(r => r.date === q.date);
+      if (i >= 0) series[i].close = q.close; else series.push(q);
+    });
+    series.sort((a, b) => a.date < b.date ? -1 : 1);
+  }
+
+  Promise.allSettled([em('0.002714'), em('116.02714')]).then(([a, h]) => {
+    let liveOk = false;
+    if (a.status === 'fulfilled' && a.value.length) {
+      merge(D.muyuan_a, a.value); liveOk = true;
+      myaNow = last(D.muyuan_a, 'close');
+      myaChart.data.datasets[0].data = ts(D.muyuan_a); myaChart.update('none');
+      ratioChart.data.datasets[1].data = D.muyuan_a.map(r => ({ x: r.date, y: r.close }));
+      ratioChart.update('none');
+    }
+    if (h.status === 'fulfilled' && h.value.length) {
+      merge(D.muyuan_h, h.value); liveOk = true;
+      myhNow = last(D.muyuan_h, 'close');
+      myhChart.data.datasets[0].data = ts(D.muyuan_h); myhChart.update('none');
+    }
+    renderMetrics();
+    document.getElementById('liveDot').classList.toggle('live', liveOk);
+    document.getElementById('liveText').textContent = liveOk ? 'quotes live · eastmoney' : 'quotes static (json)';
+  });
+
+  // self-heal: a canvas that was laid out at zero width (background tab,
+  // restored session) gets resized as soon as it has real dimensions
+  const fixZero = () => document.querySelectorAll('.panel.active canvas').forEach(cv => {
+    const ch = Chart.getChart(cv);
+    if (ch && (!cv.width || !cv.height) && cv.parentElement.clientWidth) ch.resize();
+  });
+  window.addEventListener('resize', fixZero);
+  document.addEventListener('visibilitychange', fixZero);
+  setInterval(fixZero, 1500);
 
 }).catch(err => {
-  document.getElementById('loading').textContent = 'Failed to load data/live-data.json — ' + err;
+  document.getElementById('loading').innerHTML = 'Failed to load data/live-data.json — ' + err;
 });
 </script>
 </body>

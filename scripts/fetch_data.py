@@ -56,16 +56,19 @@ def _soozhu(fn_name):
     return records(df[["date", "price"]], round_cols={"price": 2})
 
 
-def _futures(symbol, days=420):
+def _futures(symbol, days=None):
     import akshare as ak
     df = ak.futures_main_sina(symbol).rename(columns={"日期": "date", "收盘价": "close"})
     df["close_kg"] = pd.to_numeric(df["close"], errors="coerce") / 1000.0
-    return records(df[["date", "close_kg"]].tail(days), round_cols={"close_kg": 3})
+    if days:
+        df = df.tail(days)
+    return records(df[["date", "close_kg"]], round_cols={"close_kg": 3})
 
 
 def fetch_muyuan_a():
     import akshare as ak
-    df = ak.stock_zh_a_daily(symbol="sz002714", start_date="20210101",
+    # full history from the Jan-2014 listing - feeds the ratio-vs-price chart
+    df = ak.stock_zh_a_daily(symbol="sz002714", start_date="20140101",
                              end_date=datetime.now().strftime("%Y%m%d"))
     return records(df[["date", "close"]], round_cols={"close": 2})
 
@@ -83,9 +86,9 @@ LIVE_SOURCES = {
     "corn": lambda: _soozhu("spot_corn_price_soozhu"),
     "soybean": lambda: _soozhu("spot_soybean_price_soozhu"),
     "feed": lambda: _soozhu("spot_mixed_feed_soozhu"),
-    "lh_futures": lambda: _futures("LH0"),
-    "corn_futures": lambda: _futures("C0"),
-    "meal_futures": lambda: _futures("M0"),
+    "lh_futures": lambda: _futures("LH0"),          # full history (contract began 2021)
+    "corn_futures": lambda: _futures("C0"),         # full history - ratio chart needs 2014+
+    "meal_futures": lambda: _futures("M0", days=420),
     "muyuan_a": fetch_muyuan_a,
     "muyuan_h": fetch_muyuan_h,
 }
