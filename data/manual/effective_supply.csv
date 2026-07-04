@@ -1,0 +1,9 @@
+period,hog_output_yoy_pct,effective_sow_mn,is_estimate,source
+2024,-3,33.1,0,GS Exhibit 9 (sow-based supply yoy; effective sow herd period-end)
+1H25,1,31.8,0,GS Exhibit 9
+2H25,4,30.8,0,GS Exhibit 9
+1Q26,3,,0,GS Exhibit 11 (PSY-adjusted output +3% yoy - cycle peak)
+2Q26,-5,29.4,1,GS Exhibit 9/11 estimate
+3Q26,-5,28.5,1,GS Exhibit 9/11 estimate
+4Q26,-6,28.5,1,GS Exhibit 11 estimate
+2027,-5,28.5,1,GS Exhibit 9 estimate

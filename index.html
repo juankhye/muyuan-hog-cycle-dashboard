@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Muyuan (002714 CH) — Hog Cycle Signpost Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117; --card: #161b22; --card2: #1c2129; --border: #2d333b;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
+    --green: #3fb950; --amber: #d29922; --red: #f85149;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif; font-size: 14px; line-height: 1.5; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 24px 20px 60px; }
+  header h1 { font-size: 22px; font-weight: 700; }
+  header .sub { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
+  .badge { display: inline-block; background: var(--card2); border: 1px solid var(--border); border-radius: 12px; padding: 1px 10px; font-size: 11.5px; color: var(--muted); margin-left: 8px; }
+
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 18px 0; }
+  .metric { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .metric .label { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; }
+  .metric .value { font-size: 24px; font-weight: 700; margin: 2px 0; }
+  .metric .delta { font-size: 12px; color: var(--muted); }
+
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 10px 0 20px; flex-wrap: wrap; }
+  .tab { background: none; border: none; color: var(--muted); font-size: 14px; font-weight: 600; padding: 10px 16px; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .verdict { background: var(--card); border-left: 4px solid var(--accent); border-radius: 6px; padding: 16px 20px; margin-bottom: 20px; font-size: 13.5px; color: #c9d1d9; }
+  .verdict b { color: var(--text); }
+
+  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; font-size: 12.5px; }
+  th { background: var(--card2); color: var(--muted); text-align: left; padding: 9px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  td { padding: 9px 12px; border-top: 1px solid var(--border); vertical-align: top; }
+  td.status { font-size: 16px; text-align: center; width: 34px; }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 22px; }
+  .sp-name { font-weight: 600; white-space: nowrap; }
+  .sp-trigger { color: var(--muted); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+  .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px 8px; margin-bottom: 16px; }
+  .chart-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .chart-card h3 .src { color: var(--muted); font-weight: 400; font-size: 11px; }
+  .chart-box { position: relative; height: 300px; }
+  .chart-box.tall { height: 380px; }
+  .note { color: var(--muted); font-size: 12px; margin: 6px 0 18px; }
+  h2.sec { font-size: 15px; margin: 24px 0 10px; }
+  .pill { display: inline-block; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; }
+  .pill.g { background: rgba(63,185,80,.15); color: var(--green); }
+  .pill.a { background: rgba(210,153,34,.15); color: var(--amber); }
+  #loading { text-align: center; color: var(--muted); padding: 80px 0; font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🐖 Muyuan (002714 CH) — Hog Cycle Signpost Tracker <span class="badge" id="updated"></span></h1>
+    <div class="sub">Signpost scorecard wired to the 20-Mar-26 thesis · live China hog/feed data (soozhu · zhujiadata · DCE · Sina, refreshed daily via GitHub Actions) · manual series from NBS/MOA prints &amp; broker reports (GS 30-Jun · HSBC 25-Jun · Macquarie 3-Jul)</div>
+  </header>
+
+  <div id="loading">Loading data…</div>
+  <div id="app" style="display:none">
+    <div class="metrics" id="metricStrip"></div>
+
+    <div class="tabs" id="tabs">
+      <button class="tab active" data-panel="score">📋 Scorecard</button>
+      <button class="tab" data-panel="prices">💹 Hog &amp; Piglet</button>
+      <button class="tab" data-panel="feed">🌽 Feed &amp; Margins</button>
+      <button class="tab" data-panel="supply">🐷 Supply &amp; Policy</button>
+      <button class="tab" data-panel="val">🏢 Muyuan &amp; Valuation</button>
+    </div>
+
+    <!-- SCORECARD -->
+    <div class="panel active" id="panel-score">
+      <div class="verdict" id="verdict"></div>
+      <div class="tbl-wrap"><table id="scoreTable">
+        <thead><tr><th></th><th>Signpost</th><th>Trigger</th><th>Latest reading</th><th>Comment</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <h2 class="sec">Next checkpoints</h2>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>When</th><th>What</th><th>Why it matters</th></tr></thead>
+        <tbody>
+          <tr><td>~mid-Jul 26</td><td>NBS 2Q26 sow inventory print</td><td>First test of the glide path to 37.5mn — needs ≥ −0.7mn q/q</td></tr>
+          <tr><td>Jul 26</td><td>Muyuan Jun sales volume / ASP</td><td>Confirm output discipline + ASP trough</td></tr>
+          <tr><td>late Aug 26</td><td>Muyuan 2Q26 results</td><td>Big loss already flagged by all three houses — watch cost/kg and cash</td></tr>
+          <tr><td>end Sep 26</td><td>MARA deadline: 37.5mn sows</td><td>The hard policy checkpoint this cycle now hangs on</td></tr>
+          <tr><td>Oct 26</td><td>4Q26 seasonality + El Niño onset</td><td>GS needs Rmb15/kg 2H26; frozen-pork destocking is the drag</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <!-- PRICES -->
+    <div class="panel" id="panel-prices">
+      <div class="chart-card"><h3>National hog price index — weekly, 2015– <span class="src" id="src-hogindex"></span></h3><div class="chart-box tall"><canvas id="c-hogindex"></canvas></div></div>
+      <div class="grid2">
+        <div class="chart-card"><h3>Daily lean hog 外三元 (Rmb/kg)</h3><div class="chart-box"><canvas id="c-hogspot"></canvas></div></div>
+        <div class="chart-card"><h3>15kg crossbred piglet (Rmb/head)</h3><div class="chart-box"><canvas id="c-piglet"></canvas></div></div>
+      </div>
+      <div class="grid2">
+        <div class="chart-card"><h3>DCE live-hog futures, main contract (Rmb/kg)</h3><div class="chart-box"><canvas id="c-lh"></canvas></div></div>
+        <div class="chart-card"><h3>Self-breeding profit/head — report checkpoints</h3><div class="chart-box"><canvas id="c-profit"></canvas></div></div>
+      </div>
+      <p class="note">Loss-cycle context (HSBC): current episode began Sep-25, avg −Rmb215/head — second-deepest since 2014 after Jun-21–Jun-22 (−318). Piglet trigger: 7kg weaned &lt; Rmb200/head accelerates piglet-specialist exit; breached per Macquarie (−40% y/y).</p>
+    </div>
+
+    <!-- FEED -->
+    <div class="panel" id="panel-feed">
+      <div class="metrics" id="feedMetrics"></div>
+      <div class="grid2">
+        <div class="chart-card"><h3>Corn spot (Rmb/kg)</h3><div class="chart-box"><canvas id="c-corn"></canvas></div></div>
+        <div class="chart-card"><h3>Soybean spot (Rmb/kg)</h3><div class="chart-box"><canvas id="c-soybean"></canvas></div></div>
+      </div>
+      <div class="grid2">
+        <div class="chart-card"><h3>DCE corn futures, main (Rmb/kg)</h3><div class="chart-box"><canvas id="c-cornfut"></canvas></div></div>
+        <div class="chart-card"><h3>DCE soybean-meal futures, main (Rmb/kg)</h3><div class="chart-box"><canvas id="c-mealfut"></canvas></div></div>
+      </div>
+      <p class="note">Feed ≈ 60% of Muyuan unit cost; GP sensitivity ≈ Rmb0.1/kg hog-price move = ~Rmb0.9bn NI. Watch: NOAA puts El Niño probability at 96–98% for 4Q26 — a 2027 feed-cost risk. March-26 Hormuz overhang has cleared (corn flat y/y, meal −4.5% y/y).</p>
+    </div>
+
+    <!-- SUPPLY -->
+    <div class="panel" id="panel-supply">
+      <div class="chart-card"><h3>National sow inventory vs thesis thresholds (mn heads)</h3><div class="chart-box tall"><canvas id="c-sow"></canvas></div></div>
+      <div class="grid2">
+        <div class="chart-card"><h3>Muyuan sow inventory (mn heads, quarterly)</h3><div class="chart-box"><canvas id="c-muyuansow"></canvas></div></div>
+        <div class="chart-card"><h3>PSY-adjusted hog output y/y — actual vs GS estimates</h3><div class="chart-box"><canvas id="c-supply"></canvas></div></div>
+      </div>
+      <h2 class="sec">Producer distress log</h2>
+      <div class="tbl-wrap"><table id="distressTable"><thead><tr><th>Date</th><th>Producer</th><th>Event</th><th>Source</th></tr></thead><tbody></tbody></table></div>
+      <p class="note">GS: 4/14 listed producers &lt; 6 months cash runway at end-1Q26; ~7/14 by end-2Q26. Cash cost Rmb11.6–12.9/kg (large) vs 13.3–13.7 (marginal) against ~Rmb10 spot.</p>
+    </div>
+
+    <!-- VALUATION -->
+    <div class="panel" id="panel-val">
+      <div class="grid2">
+        <div class="chart-card"><h3>Muyuan A — 002714 CH (Rmb)</h3><div class="chart-box"><canvas id="c-mya"></canvas></div></div>
+        <div class="chart-card"><h3>Muyuan H — 2714 HK (HK$)</h3><div class="chart-box"><canvas id="c-myh"></canvas></div></div>
+      </div>
+      <h2 class="sec">Street snapshot</h2>
+      <div class="tbl-wrap"><table id="streetTable"><thead><tr><th>Broker</th><th>Date</th><th>Rating</th><th>TP A</th><th>TP H</th><th>2H26 hog</th><th>2027 hog</th><th>Inflection call</th><th>Key view</th></tr></thead><tbody></tbody></table></div>
+      <h2 class="sec">Reference facts</h2>
+      <div class="tbl-wrap"><table id="factsTable"><thead><tr><th>Item</th><th>Value</th><th>As of</th><th>Source</th></tr></thead><tbody></tbody></table></div>
+      <p class="note">GS unit-NP sensitivity (H-share): Rmb1/kg → HK$24.5 · Rmb3/kg mid-cycle → HK$61.9 · Rmb5/kg → HK$99.3. Replacement cost ≈ Rmb1,500/head EV → HK$34.5; historical-low EV/head ≈ Rmb2,500 → HK$54.5.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const C = { text:'#e6edf3', muted:'#8b949e', grid:'#21262d', blue:'#58a6ff', green:'#3fb950', amber:'#d29922', red:'#f85149', purple:'#bc8cff', orange:'#f0883e' };
+Chart.defaults.color = C.muted;
+Chart.defaults.borderColor = C.grid;
+Chart.defaults.font.size = 11;
+
+// tiny plugin: draw labelled horizontal reference lines from options.hLines
+const hLinesPlugin = {
+  id: 'hLines',
+  afterDraw(chart) {
+    const lines = chart.options.hLines || [];
+    const { ctx, chartArea: a, scales: { y } } = chart;
+    lines.forEach(([val, label, color]) => {
+      if (val < y.min || val > y.max) return;
+      const py = y.getPixelForValue(val);
+      ctx.save();
+      ctx.strokeStyle = color; ctx.setLineDash([5, 4]); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(a.left, py); ctx.lineTo(a.right, py); ctx.stroke();
+      ctx.setLineDash([]); ctx.fillStyle = color; ctx.font = '10px sans-serif';
+      ctx.textAlign = 'right'; ctx.fillText(label, a.right - 4, py - 4);
+      ctx.restore();
+    });
+  }
+};
+Chart.register(hLinesPlugin);
+
+const fmt = (x, d=2) => x == null ? 'n/a' : Number(x).toFixed(d);
+const last = (arr, key) => { for (let i = arr.length - 1; i >= 0; i--) if (arr[i][key] != null) return arr[i]; return null; };
+const ts = rows => rows.map(r => ({ x: r.date, y: r.price ?? r.close ?? r.close_kg }));
+
+function lineChart(id, datasets, { hLines=[], yTitle='', unit='' } = {}) {
+  new Chart(document.getElementById(id), {
+    type: 'line',
+    data: { datasets },
+    options: {
+      hLines,
+      maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
+      plugins: { legend: { display: datasets.length > 1, labels: { boxWidth: 12 } },
+                 tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(c.parsed.y)}${unit}` } } },
+      scales: { x: { type: 'time', time: { tooltipFormat: 'dd MMM yy' }, ticks: { maxTicksLimit: 9 } },
+                y: { title: { display: !!yTitle, text: yTitle } } },
+      elements: { point: { radius: 0, hitRadius: 8 }, line: { borderWidth: 1.8 } }
+    }
+  });
+}
+
+fetch('data/live-data.json').then(r => r.json()).then(D => {
+  const M = D.manual;
+  document.getElementById('updated').textContent = 'data as of ' + D.updated_at.slice(0, 10);
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  // ---------- scorecard math (mirrors the 20-Mar-26 thesis thresholds) ----------
+  const T_MOD = 37.5, T_STRONG = 36.5, T_SUPER = 35.0, DEADLINE = new Date('2026-09-30');
+  const sowRows = M.sow_inventory.filter(r => r.nbs_sow_mn != null);
+  const sowNow = sowRows[sowRows.length - 1], sowPrev = sowRows[sowRows.length - 2];
+  const paceQoq = sowNow.nbs_sow_mn - sowPrev.nbs_sow_mn;
+  const qtrsLeft = Math.max((DEADLINE - new Date(sowNow.date)) / 86400000 / 91.3, 0.1);
+  const paceNeeded = (T_MOD - sowNow.nbs_sow_mn) / qtrsLeft;
+
+  const hogNow = last(D.hog_spot, 'price'), pigletNow = last(D.piglet, 'price');
+  const cornNow = last(D.corn, 'price'), lhNow = last(D.lh_futures, 'close_kg');
+  const myaNow = last(D.muyuan_a, 'close'), myhNow = last(D.muyuan_h, 'close');
+  const hogCorn = hogNow && cornNow ? hogNow.price / cornNow.price : null;
+  const lossNow = last(M.price_checkpoints, 'self_breeding_profit_rmb_head');
+  const lossMonths = Math.round((Date.now() - new Date('2025-09-01')) / 86400000 / 30.4);
+  const supActual = M.effective_supply.filter(r => !r.is_estimate).slice(-1)[0];
+  const supNext = M.effective_supply.filter(r => r.is_estimate)[0];
+  const facts = Object.fromEntries(M.muyuan.map(r => [r.item, r.value]));
+  const replH = +facts.replacement_value_h_hkd, histLowH = +facts.hist_low_ev_head_value_h_hkd;
+
+  const G = '🟢', A = '🟡';
+  const signposts = [
+    [sowNow.nbs_sow_mn > T_MOD ? A : G, 'Sow herd level',
+     `≤${T_MOD}mn = moderate turn · ≤${T_STRONG} = strong · ≤${T_SUPER} = super-cycle`,
+     `${fmt(sowNow.nbs_sow_mn)}mn (${sowNow.date} NBS), −${(100 * (45.64 - sowNow.nbs_sow_mn) / 45.64).toFixed(0)}% off Jun-21 peak`,
+     'Above target, but MARA has made 37.5mn an enforced end-Sep deadline (17-Jun meeting; provincial quotas issued in June).'],
+    [Math.abs(paceQoq) < Math.abs(paceNeeded) ? A : G, 'Liquidation pace',
+     `Needs ~${fmt(Math.abs(paceNeeded))}mn/qtr to hit ${T_MOD}mn by Sep-26 (March ask: ~2× the then-pace)`,
+     `Last print ${fmt(paceQoq)}mn q/q (${sowPrev.date} → ${sowNow.date})`,
+     'Pace must accelerate ~35% vs 1Q26; record losses + policy deadline argue it will. Next checkpoint: Jun-26 NBS print (~mid-Jul).'],
+    [G, 'Effective supply (PSY-adjusted)',
+     'Output must roll ≥5% y/y — the March complaint was PSY gains kept effective supply positive',
+     `${supActual.period}: ${supActual.hog_output_yoy_pct > 0 ? '+' : ''}${supActual.hog_output_yoy_pct}% y/y (peak) → ${supNext.period}E ${supNext.hog_output_yoy_pct}%`,
+     'GS PSY-adjusted output peaked 1Q26, −5/−5/−6% y/y in 2Q–4Q26E → ~5% 2H26 supply deficit — the effective cut the thesis required.'],
+    [G, 'Producer capitulation',
+     "Sustained cash losses forcing exits (the 'corporates don't capitulate' worry)",
+     `Loss ~Rmb${Math.abs(lossNow.self_breeding_profit_rmb_head)}/head · ~${lossMonths} months of losses · ${M.distress_events.length} distress events`,
+     '~50% of listcos < 6m cash runway by end-2Q26 (GS). Bankruptcies/restructurings multiplying — capitulation is financial, not voluntary.'],
+    [G, 'Piglet price (leading indicator)',
+     '7kg weaned < Rmb200/head = piglet-specialist exit accelerates (HSBC); sustained falls = rebuild appetite dead',
+     `15kg crossbred Rmb${fmt(pigletNow?.price, 0)}/head (${pigletNow?.date}) · 7kg ~Rmb150–160 per Macquarie (−40% y/y)`,
+     'Trigger breached on the 7kg series. A rebound > Rmb300 (7kg) would flag re-expansion — exit signal.'],
+    [G, 'Feed cost overhang',
+     'March condition: Hormuz/feed-spike risk resolves, or the spike accelerates destocking',
+     `Corn Rmb${fmt(cornNow?.price)}/kg (flat y/y) · meal −4.5% y/y · hog:corn ${fmt(hogCorn, 1)}x`,
+     'Overhang cleared: ME tensions easing, corn/meal soft. New watch: NOAA 96–98% El Niño probability in 4Q26 (2027 feed risk).'],
+    [A, 'Price / margin trough behind us?',
+     'Spot stabilising above the cycle low with narrowing losses',
+     `Spot Rmb${fmt(hogNow?.price)}/kg (${hogNow?.date}) vs Rmb9.0 Apr-26 low · LH main Rmb${fmt(lhNow?.close_kg)}/kg`,
+     'Bounce started (losses −500 → −370/head) and futures price recovery at ~Rmb12+ — but frozen-pork inventory at 3-yr high caps the first leg.'],
+    [myhNow && myhNow.close < replH ? G : A, 'Valuation asymmetry',
+     `Downside asset-backed: price at/below replacement cost (H ≈ HK$${replH}) & record-low EV/head`,
+     `A Rmb${fmt(myaNow?.close)} · H HK$${fmt(myhNow?.close)} vs replacement HK$${replH} · hist-low EV/head HK$${histLowH} · street TPs Rmb51.5–54.5`,
+     'H below replacement = paying less than liquidation for the lowest-cost producer. GS low case HK$24.5; mid-cycle HK$61.9.'],
+  ];
+  const nGreen = signposts.filter(s => s[0] === G).length;
+
+  document.getElementById('scoreTable').querySelector('tbody').innerHTML = signposts.map(s =>
+    `<tr><td class="status">${s[0]}</td><td class="sp-name">${s[1]}</td><td class="sp-trigger">${s[2]}</td><td>${s[3]}</td><td class="sp-trigger">${s[4]}</td></tr>`).join('');
+
+  document.getElementById('verdict').innerHTML =
+    `<b>Standing read (vs the 20-Mar-26 memo):</b> the trade has moved from <i>"directionally right but early"</i> to
+     <b>${nGreen}/${signposts.length} preconditions met at a ~25% lower entry price</b>. Policy adopted the exact 37.5mn
+     threshold the memo calibrated — now with an end-September deadline and provincial enforcement. PSY-adjusted output has
+     peaked and rolls negative through 2H26. Capitulation is financial (cash-runway exhaustion), answering the consolidation
+     objection. <b>Not</b> triggered: herd still ${fmt(sowNow.nbs_sow_mn - T_MOD, 1)}mn above target, demand soft with
+     frozen-pork inventory at 3-yr highs, street still split on magnitude (Rmb15/kg GS vs "moderate" HSBC).
+     <b>A moderate-cycle-turn setup bought below replacement cost — not a super-cycle bet.</b>
+     Falsifiers: Jun/Sep sow prints miss the glide path · 7kg piglet back &gt; Rmb300 · corn/meal +15%.`;
+
+  document.getElementById('metricStrip').innerHTML = [
+    ['Signposts triggered', `${nGreen}/${signposts.length}`, `${signposts.length - nGreen} amber`],
+    ['Hog spot (Rmb/kg)', fmt(hogNow?.price), `vs 9.0 Apr low · LH fut ${fmt(lhNow?.close_kg, 1)}`],
+    ['Sow herd (mn)', fmt(sowNow.nbs_sow_mn), `target ${T_MOD} by Sep-26 · pace ${fmt(paceQoq)}/qtr`],
+    ['Muyuan A / H', `${fmt(myaNow?.close, 1)} / ${fmt(myhNow?.close, 1)}`, 'street TP 51.5–54.5 (A)'],
+    ['Hog : corn ratio', `${fmt(hogCorn, 1)}x`, 'breakeven convention ~6x'],
+  ].map(m => `<div class="metric"><div class="label">${m[0]}</div><div class="value">${m[1]}</div><div class="delta">${m[2]}</div></div>`).join('');
+
+  // ---------- tabs ----------
+  document.getElementById('tabs').addEventListener('click', e => {
+    if (!e.target.dataset.panel) return;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === e.target));
+    document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + e.target.dataset.panel));
+    // canvases created while their panel was display:none are 0-size; resize on reveal
+    // (setTimeout, not rAF — rAF is suspended in background tabs)
+    setTimeout(() =>
+      document.querySelectorAll(`#panel-${e.target.dataset.panel} canvas`).forEach(cv => Chart.getChart(cv)?.resize()), 0);
+  });
+
+  // ---------- charts ----------
+  lineChart('c-hogindex', [
+    { label: 'transacted avg', data: ts(D.hog_index), borderColor: C.blue },
+    { label: 'presale avg', data: D.hog_index.map(r => ({ x: r.date, y: r.presale })), borderColor: C.purple },
+  ], { hLines: [[9.0, 'Apr-26 low 9.0', C.red]], yTitle: 'Rmb/kg', unit: ' Rmb/kg' });
+
+  lineChart('c-hogspot', [{ label: 'lean hog', data: ts(D.hog_spot), borderColor: C.blue }], { unit: ' Rmb/kg' });
+  lineChart('c-piglet', [{ label: 'piglet', data: ts(D.piglet), borderColor: C.orange }], { unit: ' Rmb/head' });
+  lineChart('c-lh', [{ label: 'LH main', data: ts(D.lh_futures), borderColor: C.green }],
+    { hLines: hogNow ? [[hogNow.price, `spot ${fmt(hogNow.price)}`, C.blue]] : [], unit: ' Rmb/kg' });
+  lineChart('c-profit', [{ label: 'profit/head', data: M.price_checkpoints.map(r => ({ x: r.date, y: r.self_breeding_profit_rmb_head })), borderColor: C.red, spanGaps: true }],
+    { hLines: [[0, 'breakeven', C.muted]], unit: ' Rmb/head' });
+
+  lineChart('c-corn', [{ label: 'corn spot', data: ts(D.corn), borderColor: C.amber }], { unit: ' Rmb/kg' });
+  lineChart('c-soybean', [{ label: 'soybean spot', data: ts(D.soybean), borderColor: C.green }], { unit: ' Rmb/kg' });
+  lineChart('c-cornfut', [{ label: 'DCE corn', data: ts(D.corn_futures), borderColor: C.amber }], { unit: ' Rmb/kg' });
+  lineChart('c-mealfut', [{ label: 'DCE meal', data: ts(D.meal_futures), borderColor: C.green }], { unit: ' Rmb/kg' });
+
+  document.getElementById('feedMetrics').innerHTML = [
+    ['Corn spot', `${fmt(cornNow?.price)} Rmb/kg`, cornNow?.date],
+    ['Soybean spot', `${fmt(last(D.soybean, 'price')?.price)} Rmb/kg`, last(D.soybean, 'price')?.date],
+    ['Mixed feed', `${fmt(last(D.feed, 'price')?.price)} Rmb/kg`, last(D.feed, 'price')?.date],
+    ['Hog : corn', `${fmt(hogCorn, 2)}x`, 'deep below 6x = max pain'],
+  ].map(m => `<div class="metric"><div class="label">${m[0]}</div><div class="value">${m[1]}</div><div class="delta">${m[2] || ''}</div></div>`).join('');
+
+  // sow chart with glide path + thresholds
+  new Chart(document.getElementById('c-sow'), {
+    type: 'line',
+    data: { datasets: [
+      { label: 'NBS sow herd', data: sowRows.map(r => ({ x: r.date, y: r.nbs_sow_mn })), borderColor: C.blue, pointRadius: 3 },
+      { label: 'required glide path', data: [{ x: sowNow.date, y: sowNow.nbs_sow_mn }, { x: '2026-09-30', y: T_MOD }], borderColor: C.orange, borderDash: [6, 4], pointRadius: 0 },
+    ]},
+    options: {
+      hLines: [[39.0, 'MARA green zone ~39', C.muted], [T_MOD, `MARA target / moderate ${T_MOD}`, C.amber], [T_STRONG, `strong ${T_STRONG}`, C.orange], [T_SUPER, `super-cycle ${T_SUPER}`, C.red]],
+      maintainAspectRatio: false, animation: false,
+      plugins: { legend: { labels: { boxWidth: 12 } } },
+      scales: { x: { type: 'time', ticks: { maxTicksLimit: 10 } }, y: { title: { display: true, text: 'mn heads' }, suggestedMin: 34 } },
+      elements: { line: { borderWidth: 2 } }
+    }
+  });
+
+  lineChart('c-muyuansow', [{ label: 'Muyuan sows', data: M.sow_inventory.filter(r => r.muyuan_sow_mn != null).map(r => ({ x: r.date, y: r.muyuan_sow_mn })), borderColor: C.purple }], { unit: ' mn' });
+
+  new Chart(document.getElementById('c-supply'), {
+    type: 'bar',
+    data: { labels: M.effective_supply.map(r => r.period + (r.is_estimate ? 'E' : '')),
+            datasets: [{ label: 'hog output y/y %', data: M.effective_supply.map(r => r.hog_output_yoy_pct),
+                         backgroundColor: M.effective_supply.map(r => r.is_estimate ? 'rgba(248,81,73,.55)' : 'rgba(88,166,255,.65)') }] },
+    options: { hLines: [[-5, '−5% = thesis trigger', C.red]], maintainAspectRatio: false, animation: false,
+               plugins: { legend: { display: false } }, scales: { y: { title: { display: true, text: '% y/y' } } } }
+  });
+
+  document.getElementById('distressTable').querySelector('tbody').innerHTML =
+    M.distress_events.map(r => `<tr><td>${r.date}</td><td>${r.producer}</td><td>${r.event}</td><td class="sp-trigger">${r.source}</td></tr>`).join('');
+
+  lineChart('c-mya', [{ label: '002714 CH', data: ts(D.muyuan_a), borderColor: C.blue }],
+    { hLines: [[51.5, 'GS TP 51.5', C.green], [54.5, 'HSBC TP 54.5', C.green], [53.0, 'Macquarie TP 53', C.green]], unit: ' Rmb' });
+  lineChart('c-myh', [{ label: '2714 HK', data: ts(D.muyuan_h), borderColor: C.purple }],
+    { hLines: [[replH, `replacement ${replH}`, C.amber], [histLowH, `hist-low EV/head ${histLowH}`, C.green], [24.5, 'GS low case 24.5', C.red]], unit: ' HK$' });
+
+  document.getElementById('streetTable').querySelector('tbody').innerHTML = M.street_estimates.map(r =>
+    `<tr><td>${r.broker}</td><td>${r.report_date}</td><td>${r.rating}</td><td>${r.tp_a_rmb ?? '—'}</td><td>${r.tp_h_hkd ?? '—'}</td><td>${r.hog_price_2h26_rmb_kg ?? '—'}</td><td>${r.hog_price_2027_rmb_kg ?? '—'}</td><td>${r.inflection_call}</td><td class="sp-trigger">${r.key_view}</td></tr>`).join('');
+
+  document.getElementById('factsTable').querySelector('tbody').innerHTML = M.muyuan.map(r =>
+    `<tr><td>${r.item}</td><td>${r.value}</td><td>${r.as_of}</td><td class="sp-trigger">${r.source}</td></tr>`).join('');
+
+}).catch(err => {
+  document.getElementById('loading').textContent = 'Failed to load data/live-data.json — ' + err;
+});
+</script>
+</body>
+</html>
